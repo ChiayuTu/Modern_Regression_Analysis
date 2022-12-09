@@ -1,0 +1,203 @@
+---
+title: "Homework Two"
+author: "Chiayu Tu (Louis Tu)"
+date: "2022-10-16"
+output: 
+  pdf_document:
+    latex_engine : xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(faraway)
+library(tidyverse)
+library(ellipse)
+
+```
+
+## Question One
+For the prostate data, fit a model with lpsa as the response and the other variables as predictors:
+
+### (a)
+Compute 90 and 95% CIs for the parameter associated with age. Using just these intervals, what could we have deduced about the p-value for age in the
+regression summary?
+
+```{r 1.a}
+#creat a model 
+model_l <- lm(lpsa ~ ., data = prostate)
+summary(model_l)
+ 
+#Compute 90% CIs
+confint(model_l, level = 0.90)
+
+#Compute 95% CIs
+confint(model_l, level = 0.95)
+
+```
+
+### (b)
+Compute and display a 95% joint confidence region for the parameters associated with age and lbph. Plot the origin on this display. The location of the origin on the display tells us the outcome of a certain hypothesis test. State that test and its outcome.
+
+```{r 1.b}
+#Origin plot
+plot(ellipse(model_l, c("age", "lbph")),
+     type = "l",
+     main = "Joint Confidence Region")
+points(coef(model_l)["age"], coef(model_l)["lbph"], pch = 18)
+abline(v = confint(model_l)["age", ], lty = 2)
+abline(h = confint(model_l)["lbph", ], lty = 2)
+points(0, 0)
+#Creat a model
+model_l_1 <- lm(lpsa ~ age + lbph, data = prostate)
+#Ellipsee plot
+plot(ellipse(model_l_1, c("age", "lbph")),
+     type = "l",
+     main = "Joint Confidence Region")
+points(coef(model_l_1)["age"], coef(model_l)["lbph"], pch = 18)
+abline(v = confint(model_l_1)["age", ], lty = 2)
+abline(h = confint(model_l_1)["lbph", ], lty = 2)
+points(0, 0)
+#
+anova(model_l_1, model_l)
+```
+
+### (d)
+Remove all the predictors that are not significant at the 5% level. Test this model against the original model. Which model is preferred?
+
+```{r 1.d}
+#Predictors are significant at the 5% level
+model_l_2 <- lm(lpsa ~ lcavol + lweight + svi, data = prostate)
+summary(model_l_2)
+
+anova(model_l, model_l_2)
+```
+
+## Question Two
+Thirty samples of cheddar cheese were analyzed for their content of acetic acid, hydrogen sulfide and lactic acid. Each sample was tasted and scored by a panel of judges and the average taste score produced. Use the cheddar data to answer the following:
+
+### (2a)
+Fit a regression model with taste as the response and the three chemical contents as predictors. Identify the predictors that are statistically significant at the 5% level.
+
+```{r 2.a}
+#fit the model using lm with taste as the response 
+model_c <- lm(taste ~ Acetic + H2S + Lactic, data = cheddar)
+summary(model_c)
+
+print("H2S and Lactic are the only two variables which are significant at 5% level of significance.")
+```
+
+### (2b)
+Acetic and H2S are measured on a log scale. Fit a linear model where all three predictors are measured on their original scale. Identify the predictors that are statistically significant at the 5% level for this model.
+
+```{r 2.b}
+model_c_1 <- lm(taste ~ log(Acetic) + log(H2S) + Lactic, data = cheddar)
+summary(model_c_1)
+
+print("log H2S and Lactic still are the only two variables which are significant at 5% level of significant. And log Acetic is not significant at the 5% level for this model.")
+
+```
+
+### (2c)
+Can we use an F-test to compare these two models? Explain. Which model provides a better fit to the data? Explain your reasoning.
+
+```{r 2.c}
+print("These two models can not be compared by F-test, because these two models are not nested")
+
+```
+
+### (2d)
+If H2S is increased 0.01 for the model used in (a), what change in the taste would be expected?
+
+```{r 2.d}
+model_c$coefficients
+
+```
+
+## Question Three
+In the punting data, we find the average distance punted and hang times of 10
+punts of an American football as related to various measures of leg strength for
+13 volunteers.
+
+### (3a)
+Fit a regression model with Distance as the response and the right and left leg
+strengths and flexibilities as predictors. Which predictors are significant at the 5% level?
+
+```{r 3.a}
+model_p <- lm(Distance ~ RStr + LStr + RFlex + LFlex, data = punting)
+summary(model_p)
+
+print("All variables' p-value are less than 0.05, so we can know that there are not prodictors are significant at the 5% level.")
+```
+
+### (3b)
+Use an F-test to determine whether collectively these four predictors have a relationship to the response.
+
+```{r 3.b}
+model_p_1 <- lm(Distance ~ 1, data = punting)
+anova(model_p_1, model_p)
+```
+
+### (3c)
+Relative to the model in (a), test whether the right and left leg strengths have
+the same effect.
+
+```{r 3.c}
+model_p_2 <- lm(Distance ~ I(RStr + LStr) + RFlex + LFlex, data = punting)
+summary(model_p_2)
+anova(model_p_2, model_p)
+```
+
+### (3d)
+Construct a 95% confidence region for (βRStr,βLStr). Explain how the test in (c) relates to this region.
+
+```{r 3.d}
+confint(model_p, c("RStr", "LStr"))
+```
+
+### (3e)
+Fit a model to test the hypothesis that it is total leg strength defined by adding the right and left leg strengths that is sufficient to predict the response in comparison to using individual left and right leg strengths.
+
+```{r 3.e}
+model_p_3 <- lm(Distance ~ RStr + LStr, data = punting)
+summary(model_p_3)
+
+model_p_4 <- lm(Distance ~ I(RStr + LStr), data = punting)
+summary(model_p_4)
+
+anova(model_p_3, model_p_4)
+```
+
+### (3f)
+Relative to the model in (a), test whether the right and left leg flexibilities have the same effect.
+
+```{r 3.f}
+model_p_5 <- lm(Distance ~ RStr + LStr + I(RFlex + LFlex), data = punting)
+summary(model_p_5)
+anova(model_p_5, model_p)
+```
+
+### (3g)
+Test for left–right symmetry by performing the tests in (c) and (f) simultaneously
+
+```{r 3.g}
+model_p_6 <- lm(Distance ~ I(RStr + LStr) + I(RFlex + LFlex), data = punting)
+summary(model_p_6)
+anova(model_p_6, model_p)
+
+print("Based on this p-value we can not reject the null hypothesis of right-left symmetry.")
+```
+
+### (3h)
+Fit a model with Hang as the response and the same four predictors. Can we
+make a test to compare this model to that used in (a)? Explain.
+
+```{r 3.h}
+model_p_7 <- lm(Hang ~ RStr + LStr + RFlex + LFlex, data = punting)
+summary(model_p_7)
+
+print("These two models can not be compared by F-test, because these two models are not nested")
+```
+
+
+

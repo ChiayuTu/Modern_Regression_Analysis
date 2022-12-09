@@ -1,0 +1,137 @@
+---
+title: "Homework One"
+author: "Chiayu Tu (Louis Tu)"
+date: '2022-10-09'
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(faraway)
+library(tidyverse)
+```
+
+## Question One
+1. The dataset teengamb concerns a study of teenage gambling in Britain. Fit a
+regression model with the expenditure on gambling as the response and the sex,
+status, income and verbal score as predictors. Present the output.
+
+(a) What percentage of variation in the response is explained by these
+predictors?
+(b) Which observation has the largest (positive) residual? Give the case number.
+(c) Compute the mean and median of the residuals.
+(d) Compute the correlation of the residuals with the fitted values.
+(e) Compute the correlation of the residuals with the income.
+(f) For all other predictors held constant, what would be the difference in predicted expenditure on gambling for a male compared to a female?
+
+```{r Question_One_a}
+#Question One a
+#Summary of teengamb
+t_model <- lm(gamble~.,data = teengamb)
+summary(t_model)
+```
+```{r Question_One_b}
+#Question One b 
+#Find the largest residual
+largest_residual <- max(t_model$residuals)
+largest_residual_num <- t_model$residuals[t_model$residuals == largest_residual]
+largest_residual_num
+print("The largest residual is 94, and the case number is 24")
+```
+```{r Question_One_c}
+#Question One c
+#Mean
+residual_mean <- mean(t_model$residuals)
+print(paste("The residual mean   is: ", residual_mean))
+#Medium
+residual_medium <- median(t_model$residuals)
+print(paste("The residual medium is: ", residual_medium))
+```
+```{r Question_One_d}
+#Question One d
+cor_fit.value <- zapsmall(cor(fitted(t_model), resid(t_model)))
+print("The correlation of the residuals with the fitted values is: ")
+print(cor_fit.value)
+```
+```{r Question_One_e}
+#Question One e
+print("Compute the correlation of the residuals with the income is: ")
+cor(teengamb$income, resid(t_model))
+```
+
+## Question Two
+2. The dataset uswages is drawn as a sample from the Current Population Survey in 1988. Fit a model with weekly wages as the response and years of education and experience as predictors. Report and give a simple interpretation to the regression coefficient for years of education. Now fit the same model but with logged weekly wages. Give an interpretation to the regression coefficient for years of education. Which interpretation is more natural?
+
+```{r Question_Two}
+view(uswages)
+E_model <- lm(formula = wage ~ educ + exper, data = uswages)
+summary(E_model)
+
+E_model_1 <- lm(formula = log(wage) ~ educ + exper - 1, data = uswages)
+summary(E_model_1)
+```
+
+## Question Three
+4. The dataset prostate comes from a study on 97 men with prostate cancer who
+were due to receive a radical prostatectomy. Fit a model with lpsa as the response and lcavol as the predictor. Record the residual standard error and the R^2. Now add lweight, svi, lbph, age, lcp, pgg45 and gleason to the model one at a time. For each model record the residual standard error and the R^2. Plot the trends in these two statistics.
+
+```{r Question_Three}
+#view(prostate)
+P_model <- lm(lcavol ~ lpsa, data = prostate)
+summary(P_model)
+
+
+model1 <- lm(lcavol ~ lpsa, data = prostate)
+v <- summary(model1)
+R2<- c()
+Sgma <- c()
+R2 = v$r.squared
+Sgma = v$sigma
+for(i in 1:7){
+  model.temp = lm(prostate$lcavol ~ prostate$lpsa + prostate[,i+1], data = prostate)
+  v = summary(model.temp)
+  R2[i+1] = v$r.squared
+  Sgma[i+1] = v$sigma
+}
+
+
+plot(Sgma, R2, type = "l", main = "Residual Error vs R^2", xlab = "Models", ylab = "Values" , ylim = c(.40,.90))
+points(Sgma, R2, type = "l" )
+
+```
+
+## Qurstion Four
+6. Thirty samples of cheddar cheese were analyzed for their content of acetic acid, hydrogen sulfide and lactic acid. Each sample was tasted and scored by a panel of judges and the average taste score produced. Use the cheddar data to answer the following:
+
+(a) Fit a regression model with taste as the response and the three chemical contents as predictors. Report the values of the regression coefficients.
+(b) Compute the correlation between the fitted values and the response. Square it. Identify where this value appears in the regression output.
+(c) Fit the same regression model but without an intercept term. What is the value of R^2 reported in the output? Compute a more reasonable measure of the goodness of fit for this example.
+
+```{r Question_Four}
+#view(cheddar)
+C_model <- lm(taste ~ Acetic + H2S + Lactic, data = cheddar)
+summary(C_model)
+#b
+
+(cor(cheddar$taste,cheddar$Acetic))^2
+(cor(cheddar$taste,cheddar$H2S))^2
+(cor(cheddar$taste,cheddar$Lactic))^2
+
+
+(cor(C_model$fitted.values,cheddar$Acetic))^2
+(cor(C_model$fitted.values,cheddar$H2S))^2
+(cor(C_model$fitted.values,cheddar$Lactic))^2
+
+#c 
+#without an intercept term
+C_model_1 <- lm(taste ~ 0 + Acetic + H2S + Lactic, data = cheddar)
+summary(C_model_1)
+
+(cor(C_model_1$fitted.values,cheddar$Acetic))^2
+(cor(C_model_1$fitted.values,cheddar$H2S))^2
+(cor(C_model_1$fitted.values,cheddar$Lactic))^2
+
+
+
+```

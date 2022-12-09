@@ -1,0 +1,133 @@
+---
+title: "Homework Six"
+author: "Chiayu Tu (Louis Tu)"
+date: "2022-11-25"
+output: 
+  pdf_document:
+    latex_engine : xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(faraway)
+library(tidyverse)
+library(ellipse)
+```
+
+## Question One
+Using the seatpos data, perform a PCR analysis with hipcenter as the response and HtShoes, Ht, Seated, Arm, Thigh and Leg as predictors. Select an appropriate number of components and give an interpretation to those you choose. Add Age and Weight as predictors and repeat the analysis. Use both models to predict the response for predictors taking these values:
+
+Age     Weight   HtShoes  Ht       Seated
+64.800  263.700  181.080  178.560  91.440
+Arm     Thigh    Leg
+35.640  40.950   38.790
+
+```{r a}
+data(seatpos, package = "faraway")
+plot(hipcenter ~ HtShoes, seatpos)
+plot(hipcenter ~ Ht, seatpos)
+plot(hipcenter ~ Seated, seatpos)
+plot(hipcenter ~ Arm, seatpos)
+plot(hipcenter ~ Thigh, seatpos)
+plot(hipcenter ~ Leg, seatpos)
+
+cseatpos <- seatpos[, c(3,4,5,6,7,8)]
+prseatpos <- prcomp(cseatpos)
+dim(prseatpos$rotation)
+dim(prseatpos$x)
+summary(prseatpos)
+
+round(prseatpos$rotation[, 1], 2)
+prseatposc <- prcomp(cseatpos, scale = TRUE)
+summary(prseatposc)
+round(prseatposc$rotation[, 1], 2)
+
+require(MASS)
+robseatpos <- cov.rob(cseatpos)
+md <- mahalanobis(cseatpos, center = robseatpos$center, cov = robseatpos$cov)
+n <- nrow(cseatpos);p <- ncol(cseatpos)
+plot(qchisq(1:n/(n + 1), p), 
+     sort(md), 
+     xlab = expression(paste(chi^2," quantiles")), 
+     ylab="Sorted Mahalanobis distances")
+abline(0, 1)
+
+lmodpcr <- lm(seatpos$hipcenter ~ prseatpos$x[,1])
+summary(lmodpcr)
+matplot(1:6, prseatpos$rotation, type = "l")
+
+require(pls)
+trainseat <- seatpos[1:30,]
+testseat <- seatpos[31:38,]
+pcrmod <- pcr(hipcenter ~ ., data=trainseat, ncomp = 8)
+
+rmse <- function(x,y) sqrt(mean((x-y)^2))
+
+rmse(predict(pcrmod), trainseat$hipcenter)
+plot(prseatpos$sdev, type="l", ylab="SD of PC", xlab="PC number")
+
+pcrmse <- RMSEP(pcrmod, newdata=testseat)
+plot(pcrmse,main="")
+```
+
+## Question Two
+The dataset kanga contains data on the skulls of historical kangaroo specimens.
+
+### a
+Compute a PCA on the 18 skull measurements. You will need to exclude observations with missing values. What percentage of variation is explained by the first principal component?
+
+```{r 2.a}
+df <- kanga 
+df <-na.omit(df)
+class.labels <- df$sex
+class.labels.species <- df$species
+df <-subset ( df,select = -c(species,sex))
+pca.kanga <- prcomp(df)
+summary(pca.kanga)
+```
+
+### b
+Provide the loadings for the first principal component. What variables are prominent?
+
+```{r 2.b}
+library(pander)
+pander( data.frame(first.pc.loadings =round(pca.kanga$rotation[,1], 3)), caption ="First Principal Component")
+```
+
+### c
+Repeat the PCA but with the variables all scaled to the same standard deviation. How do the percentage of variation explained and the first principal component differ from those found in the previous PCA?
+
+```{r 2.c}
+pca.kanga.scaled <- prcomp(df,scale. = TRUE)
+summary(pca.kanga.scaled)
+```
+
+### d
+Give an interpretation of the second principal component.
+
+```{r 2.d}
+pander( data.frame(first.pc.loadings =round(pca.kanga$rotation[,2], 3)), caption ="Second Principal Component")
+```
+
+### e
+Compute the Mahalanobis distances and plot appropriately to check for outliers.
+
+```{r 2.e}
+require(MASS)
+rob.kanga <- cov.rob(df)
+mahalanobis.distances <- mahalanobis(df, center=rob.kanga$center, cov=rob.kanga$cov)
+n <- nrow(df)
+p <- ncol(df)
+plot(qchisq(1:n/(n+1),p), sort(mahalanobis.distances), xlab=expression(paste(chi^2," quantiles")), ylab="Sorted Mahalanobis distances", main = "Unscaled Mahlanobis Distances")
+abline(0,1)
+```
+
+### f
+Make a scatterplot of the first and second principal components using a different plotting symbol depending on the sex of the specimen. Do you think these two components would be effective in determining the sex of a skull?
+
+```{r 2.f}
+scores <- data.frame(class.labels, pca.kanga.scaled$x[,1:2])
+qplot(x=PC1, y=PC2, data=scores, colour=factor(class.labels))
+```
+

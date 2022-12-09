@@ -1,0 +1,455 @@
+---
+title: "Stat_364_HW_Four"
+author: "Chiayu Tu (Louis Tu)"
+date: "2022-11-07"
+output: 
+  pdf_document:
+    latex_engine : xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(faraway)
+library(tidyverse)
+library(ellipse)
+```
+
+## Question One
+Using the sat dataset, fit a model with the total SAT score as the response and expend, salary, ratio and takers as predictors. Perform regression diagnostics on this model to answer the following questions. Display any plots that are relevant. Do not provide any plots about which you have nothing to say. Suggest possible improvements or corrections to the model where appropriate.
+
+### a
+Check the constant variance assumption for the errors.
+
+```{r 1a.1}
+#view(sat)
+model_s <- lm(total ~ expend + salary + ratio + takers, data = sat)
+summary(model_s)
+
+plot(fitted(model_s), 
+     residuals(model_s),
+     xlab = "Fitted",
+     ylab = "Residuals")
+ abline(h=0)
+
+plot(fitted(model_s), 
+     sqrt(abs(residuals(model_s))), 
+     xlab = "Fitted", 
+     ylab = expression(sqrt(hat(epsilon))))
+
+summary(lm(sqrt(abs(residuals(model_s))) ~ fitted(model_s)))
+
+par(mfrow=c(3,3))
+n <- 50
+for(i in 1:9) {x <- runif(n) ; plot(x, rnorm(n))}
+for(i in 1:9) {x <- runif(n) ; plot(x, x*rnorm(n))}
+for(i in 1:9) {x <- runif(n) ; plot(x, sqrt ((x)) * rnorm(n))}
+for(i in 1:9) {x <- runif(n) ; plot(x, cos(x*pi/25)+rnorm(n, sd = 1))}
+par(mfrow=c(1,1))
+```
+
+```{r 1a.2}
+model_s_1 <- lm(sqrt(total) ~ expend + salary + ratio + takers, data = sat)
+summary(model_s_1)
+
+plot(fitted(model_s_1), 
+     residuals(model_s_1), 
+     xlab = "Fitted", 
+     ylab = "Residuals")
+abline(h=0)
+
+mean(sat$expend)
+
+var.test(residuals(model_s_1)[sat$expend>5.90526], residuals(model_s_1)[sat$exp<5.90526])
+```
+
+### b
+Check the normality assumption.
+
+```{r 1b}
+qqnorm(residuals(model_s), ylab = "Residuals", main = "")
+qqline(residuals(model_s))
+
+hist(residuals(model_s),xlab="Residuals",main="")
+
+par(mfrow=c(3,3))
+n <- 50 
+for(i in 1:9) {x <- rnorm(n) ; qqnorm(x) ; qqline(x)}
+for(i in 1:9) {x <- exp(rnorm(n)); qqnorm(x); qqline(x)}
+for(i in 1:9) {x <- rcauchy(n); qqnorm(x); qqline(x)}
+for(i in 1:9) {x <- runif(n); qqnorm(x); qqline(x)}
+par(mfrow=c(1,1))
+
+shapiro.test(residuals(model_s))
+```
+
+### c 
+Check for large leverage points.
+
+```{r 1c}
+hatv <- hatvalues(model_s)
+head(hatv)
+
+sum(hatv)
+
+states <- row.names(sat)
+halfnorm(hatv, labs = states, ylab = "Leverages")
+
+qqnorm(rstandard(model_s))
+abline(0,1)
+```
+
+### d
+Check for outliers.
+
+```{r 1d}
+set.seed(123)
+testdata <- data.frame(x = 1:10,
+                       y = 1:10 + rnorm(10))
+model_s_2 <- lm(y ~ x, testdata)
+
+p1 <- c(5.5, 12)
+model_s_3 <- lm(y ~ x, rbind(testdata, p1))
+plot(y ~ x, rbind(testdata, p1))
+points(5.5, 12, pch=4, cex=2)
+abline(model_s_2)
+abline(model_s_3, lty=2)
+
+p2 <- c(15,15.1)
+model_s_4 <- lm(y ~ x, rbind(testdata, p2))
+plot(y ~ x, rbind(testdata, p2))
+points(15, 15.1, pch=4, cex=2)
+abline(model_s_2)
+abline(model_s_4, lty=2)
+
+p3 <- c(15,5.1)
+model_s_5 <- lm(y ~ x, rbind(testdata, p3))
+plot(y ~ x, rbind(testdata, p3))
+points(15, 5.1, pch=4, cex=2)
+abline(model_s_2)
+abline(model_s_5, lty=2)
+
+stud <- rstudent(model_s)
+stud[which.max(abs(stud))]
+
+qt(0.05/(50*2),44)
+```
+
+### e
+Check for influential points.
+
+```{r 1e}
+cook <- cooks.distance(model_s)
+halfnorm(cook, 3, labs = states, ylab = "Cook's distance")
+
+model_s_6 <- lm(total ~ expend + salary + ratio + takers, data = sat, subset = (cook < max(cook)))
+summary(model_s_6)
+summary(model_s)
+
+plot(dfbeta(model_s)[,2],
+     ylab = "Change in expend coef")
+abline(h=0)
+```
+
+### f
+Check the structure of the relationship between the predictors and the response.
+
+```{r 1f}
+model_s_7 <- residuals(lm(total ~ salary + ratio + takers, data = sat))
+model_s_8 <- residuals(lm(expend ~ salary + ratio + takers, data = sat))
+plot(model_s_8, model_s_7, xlab = "expend residuals", ylab = "sat residuals")
+abline(model_s_7, model_s_8)
+
+coef(lm(model_s_7 ~ model_s_8))
+
+coef(model_s)
+#abline(0, coef(model_s)['expend'])
+termplot(model_s, 
+         partial.resid = T, 
+         terms = 1)
+
+model_s_9 <- lm(total ~ expend + salary + ratio + takers, data = sat, subset = (expend>6))
+model_s_10 <- lm(total ~ expend + salary + ratio + takers, data = sat, subset = (expend<6))
+summary(model_s_9)
+summary(model_s_10)
+
+sat$status <- ifelse(sat$expend > 6, "high", "low")
+require(ggplot2)
+ggplot(sat, aes(x = takers, y = total, shape = status)) +
+  geom_point()
+
+ggplot(sat, aes(x = takers, y = total)) +
+  geom_point() +
+  facet_grid(~ status) +
+  stat_smooth(method = "lm")
+```
+
+## Question Two
+Using the teengamb dataset, fit a model with gamble as the response and the other variables as predictors. Answer the questions posed in the previous question.
+
+### a
+Check the constant variance assumption for the errors.
+
+```{r 2a}
+#view(teengamb)
+model_t <- lm(gamble ~ ., data = teengamb)
+summary(model_t)
+
+plot(fitted(model_t), residuals(model_t), xlab = "Fitted", ylab = "Residuals")
+abline(h=0)
+
+plot(fitted(model_t), sqrt(abs(residuals(model_t))), xlab = "Fitted", ylab = expression(sqrt(hat(epsilon))))
+
+summary(lm(sqrt(abs(residuals(model_t))) ~ fitted(model_t)))
+
+par(mfrow=c(3,3))
+n <- 50
+
+for(i in 1:9) {x <- runif(n) ; plot(x, rnorm(n))}
+for(i in 1:9) {x <- runif(n) ; plot(x, x*rnorm(n))}
+for(i in 1:9) {x <- runif(n) ; plot(x, sqrt ((x)) * rnorm(n))}
+for(i in 1:9) {x <- runif(n) ; plot(x, cos(x*pi/25)+rnorm(n, sd = 1))}
+par(mfrow=c(1,1))
+
+model_t_1 <- lm(sqrt(gamble) ~ ., data = teengamb)
+summary(model_t_1)
+
+plot(fitted(model_t_1), residuals(model_t_1), xlab = "Fitted", ylab = "Residuals")
+abline(h=0)
+```
+
+### b
+Check the normality assumption.
+
+```{r 2b}
+qqnorm(residuals(model_t), ylab = "Residuals", main = "")
+qqline(residuals(model_t))
+
+par(mfrow=c(3,3))
+n <- 50 
+
+for(i in 1:9) {x <- rnorm(n) ; qqnorm(x) ; qqline(x)}
+for(i in 1:9) {x <- exp(rnorm(n)); qqnorm(x); qqline(x)}
+for(i in 1:9) {x <- rcauchy(n); qqnorm(x); qqline(x)}
+for(i in 1:9) {x <- runif(n); qqnorm(x); qqline(x)}
+par(mfrow=c(1,1))
+
+shapiro.test(residuals(model_t))
+```
+
+### c 
+Check for large leverage points.
+
+```{r 2c}
+hatv <- hatvalues(model_t)
+head(hatv)
+
+sum(hatv)
+
+#states <- row.names(gamble)
+#halfnorm(hatv, labs = states, ylab = "Leverages")
+
+qqnorm(rstandard(model_t))
+abline(0,1)
+```
+
+### d
+Check for outliers.
+
+```{r 2d}
+set.seed(123)
+testdata <- data.frame(x=1:10,y=1:10+rnorm(10))
+model_t_2 <- lm(y ~ x, testdata)
+
+p1 <- c(5.5,12)
+model_t_3 <- lm(y ~ x, rbind(testdata, p1))
+plot(y ~ x, rbind(testdata, p1))
+points(5.5, 12, pch=4, cex=2)
+abline(model_t_2)
+abline(model_t_3, lty=2)
+
+p2 <- c(15,15.1)
+model_t_4 <- lm(y ~ x, rbind(testdata, p2))
+plot(y ~ x, rbind(testdata, p2))
+points(15, 15.1, pch=4, cex=2)
+abline(model_t_2)
+abline(model_t_4, lty=2)
+
+p3 <- c(15,5.1)
+model_t_5 <- lm(y ~ x, rbind(testdata, p3))
+plot(y ~ x, rbind(testdata, p3))
+points(15, 5.1, pch=4, cex=2)
+abline(model_t_2)
+abline(model_t_5, lty=2)
+
+stud <- rstudent(model_t)
+stud[which.max(abs(stud))]
+
+qt(0.05/(50*2),44)
+```
+
+### e
+Check for influential points.
+
+```{r 2e}
+cook <- cooks.distance(model_t)
+halfnorm(cook, 3, ylab = "Cook's distance")
+
+model_t_6 <- lm(gamble ~ ., data = teengamb, subset = (cook < max(cook)))
+summary(model_t_6)
+
+plot(dfbeta(model_t)[,2],ylab = "Change in expend coef")
+abline(h=0)
+```
+
+### f
+Check the structure of the relationship between the predictors and the response.
+
+```{r 2f}
+model_t_7 <- residuals(lm(gamble ~ status + income + verbal, data = teengamb))
+model_t_8 <- residuals(lm(sex ~ status + income + verbal, data = teengamb))
+plot(model_t_8, model_t_7, xlab = "expend residuals", ylab = "sat residuals")
+abline(model_t_7, model_t_8)
+
+coef(lm(model_t_7 ~ model_t_8))
+
+coef(model_t)
+#abline(0, coef(model_s)['expend'])
+termplot(model_t, 
+         partial.resid = T, 
+         terms = 1)
+
+model_t_9 <- lm(gamble ~ sex + status + income + verbal, data = teengamb, subset = (verbal>6))
+model_t_10 <- lm(gamble ~ sex + status + income + verbal, data = teengamb, subset = (verbal<6))
+summary(model_t_9)
+summary(model_t_10)
+
+teengamb$status <- ifelse(teengamb$verbal > 6, "high", "low")
+require(ggplot2)
+ggplot(teengamb, aes(x = income, y = gamble, shape = status)) +
+  geom_point()
+
+ggplot(teengamb, aes(x = income, y = gamble)) +
+  geom_point() +
+  facet_grid(~ status) +
+  stat_smooth(method = "lm")
+```
+
+## Question Three
+Using the divusa data:
+
+### a
+Fit a regression model with divorce as the response and unemployed, femlab,
+marriage, birth and military as predictors. Compute the condition numbers and interpret their meanings.
+
+```{r 3a}
+model_d <- lm(divorce ~ unemployed + femlab + marriage + birth + military, data = divusa)
+
+sumary(model_d)
+summary(model_d)
+```
+
+### b
+For the same model, compute the VIFs. Is there evidence that collinearity causes some predictors not to be significant? Explain.
+
+```{r 3b}
+x_b <- model.matrix(model_d)[,-1]
+e_b <- eigen(t(x_b) %*% x_b)
+e_b$val 
+sqrt(e_b$val[1] / e_b$val)
+vif(x_b)
+```
+
+### c
+Does the removal of insignificant predictors from the model reduce the collinearity? Investigate.
+
+```{r 3c}
+model_d_1 <- lm(divorce + 10 * rnorm(38) ~ ., divusa)
+summary(model_d_1)
+```
+
+## Question Four
+Use the fat data, fitting the model described in Section 4.2.
+
+### a
+Compute the condition numbers and variance inflation factors. Comment on the degree of collinearity observed in the data.
+
+```{r 4a}
+#view(fat)
+model_f <- lm(brozek ~ age + weight + height + neck + chest + abdom + hip + thigh + knee + ankle + biceps + forearm + wrist, fat)
+summary(model_f)
+
+x <- model.matrix(model_f)[,-1]
+e <- eigen(t(x) %*% x)
+e$val 
+sqrt(e$val[1]/e$val)
+vif(x)
+```
+
+### b
+Cases 39 and 42 are unusual. Refit the model without these two cases and
+recompute the collinearity diagnostics. Comment on the differences observed
+from the full data fit.
+
+```{r 4b}
+fat_1 <- fat[-c(39,42),]
+model_f_1 <- lm(brozek ~ age + weight + height + neck + chest + abdom + hip + thigh + knee + ankle + biceps + forearm + wrist, fat_1)
+summary(model_f_1)
+
+x_1 <- model.matrix(model_f_1)[,-1]
+e_1 <- eigen(t(x_1) %*% x_1)
+e_1$val 
+sqrt(e_1$val[1] / e_1$val)
+vif(x_1)
+```
+
+### c
+Fit a model with brozek as the response and just age, weight and height as
+predictors. Compute the collinearity diagnostics and compare to the full data
+fit
+
+```{r 4c}
+model_f_2 <- lm(brozek ~ age + weight + height, fat)
+summary(model_f_2)
+
+x_2 <- model.matrix(model_f_2)[,-1]
+e_2 <- eigen(t(x_2) %*% x_2)
+e_2$val 
+sqrt(e_2$val[1] / e_2$val)
+vif(x_2)
+```
+
+### d
+Compute a 95% prediction interval for brozek for the median values of age,
+weight and height
+
+```{r 4d}
+x <- model.matrix(model_f_2)
+median <- apply(x, 2, median)
+median
+
+pred_d <- predict(model_f_2, data.frame(t(median)), interval="prediction")
+pred_d
+
+pred_d_width <- pred_d[3]-pred_d[2]
+pred_d_width
+```
+
+### e
+Compute a 95% prediction interval for brozek for age=40, weight=200 and
+height=73. How does the interval compare to the previous prediction?
+
+```{r 4e}
+new_data <- data.frame(age = 40, weight = 200, height = 73)
+pred_e <- predict(model_f_2, data.frame(new_data), interval = "prediction")
+pred_e
+```
+
+### f
+Compute a 95% prediction interval for brozek for age=40, weight=130 and height=73. Are the values of predictors unusual? Comment on how the interval compares to the previous two answers.
+
+```{r 4f}
+new_data_1 <- data.frame(age = 40, weight = 130, height = 73)
+pred_f <- predict(model_f_2, data.frame(new_data_1), interval = "prediction")
+pred_f
+```

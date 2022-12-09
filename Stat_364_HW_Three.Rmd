@@ -1,0 +1,219 @@
+---
+title: "Homework Three"
+author: "Chiayu Tu (Louis Tu)"
+date: "2022-10-24"
+output: 
+  pdf_document:
+    latex_engine : xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(faraway)
+library(tidyverse)
+library(ellipse)
+```
+
+## Question One
+For the prostate data, fit a model with lpsa as the response and the other variables as predictors.
+
+### a
+Suppose a new patient with the following values arrives:
+
+lcavol  lweight age      lbph    svi     lcp
+1.44692 3.62301 65.00000 0.30010 0.00000 -0.79851
+
+gleason pgg45
+7.00000 15.00000
+
+Predict the lpsa for this patient along with an appropriate 95% CI.
+
+```{r 1.a}
+data(prostate)
+model_p <- lm(lpsa ~ lcavol + lweight + age + lbph + svi + lcp + gleason + pgg45, data = prostate)
+model_p_1 <- data.frame(lcavol  = 1.45000, 
+                        lweight = 3.62301, 
+                        age     = 65.00000, 
+                        lbph    = 0.30010, 
+                        svi     = 0.00000, 
+                        lcp     = -0.79851, 
+                        gleason = 7.00000, 
+                        pgg45   = 15.00000) 
+predict(model_p, model_p_1, interval = "prediction")
+print("We can observe that the lpsafor this patient along with an appropriate 95% is (0.9664447, 3.815277)")
+```
+
+### b
+Repeat the last question for a patient with the same values except that he is age 20. Explain why the CI is wider.
+
+```{r 1.b}
+model_p_2 <- data.frame(lcavol  = 1.45000, 
+                        lweight = 3.62301, 
+                        age     = 20.00000, 
+                        lbph    = 0.30010, 
+                        svi     = 0.00000, 
+                        lcp     = -0.79851, 
+                        gleason = 7.00000, 
+                        pgg45   = 15.00000) 
+predict(model_p, model_p_2, interval = "prediction")
+```
+
+### c
+For the model of the previous question, remove all the predictors that are not
+significant at the 5% level. Now recompute the predictions of the previous question. Are the CIs wider or narrower? Which predictions would you prefer?
+Explain.
+
+```{r 1.c}
+#summary(model_p)
+model_p_3 <- lm(lpsa ~ lcavol + lweight + svi, data = prostate)
+model_p_4 <- data.frame(lcavol  = 1.45000,
+                        lweight = 3.59801,
+                        svi     = 0.00000)
+predict(model_p_3, model_p_4, interval = "prediction")
+```
+
+## Question Two
+Using the teengamb data, fit a model with gamble as the response and the other
+variables as predictors.
+
+### a
+Predict the amount that a male with average (given these data) status, income and verbal score would gamble along with an appropriate 95% CI.
+
+```{r 2.a}
+#view(teengamb)
+model_t <- lm(gamble ~ sex + status + income + verbal, data = teengamb)
+model_t_1 <- data.frame(sex    = 0,
+                        status = mean(teengamb$status),
+                        income = mean(teengamb$income),
+                        verbal = mean(teengamb$verbal))
+predict(model_t, model_t_1, interval = "prediction")
+```
+
+### b
+Repeat the prediction for a male with maximal values (for this data) of status,
+income and verbal score. Which CI is wider and why is this result expected?
+
+```{r 2.b}
+model_t_2 <- data.frame(sex    = 0,
+                        status = max(teengamb$status),
+                        income = max(teengamb$income),
+                        verbal = max(teengamb$verbal))
+predict(model_t, model_t_2, interval = "prediction")
+```
+
+### c
+Fit a model with sqrt(gamble) as the response but with the same predictors. Now predict the response and give a 95% prediction interval for the individual in (a). Take care to give your answer in the original units of the response.
+
+```{r 2.c}
+model_t_3 <- lm(sqrt(gamble) ~ sex + status + income + verbal, data = teengamb)
+predict(model_t_3, model_t_1, interval = "confidence")
+```
+
+### d
+Repeat the prediction for the model in (c) for a female with status=20, income=1, verbal = 10. Comment on the credibility of the result.
+
+```{r 2.d}
+model_t_4 <- data.frame(sex    = 1,
+                        status = 20,
+                        income = 1,
+                        verbal = 10)
+predict(model_t_3, model_t_4, interval = "confidence")
+```
+
+## Question Three
+Use the teengamb data with gamble as the response. We focus on the effect of sex on the response and so we include this predictor in all models. There are eight possible models that include all, some, or none of the other three predictors. Fit all these models and report on the coefficient and significance of sex in each case. Comment on the stability of the effect.
+
+```{r 3}
+model_T <- lm(gamble ~ sex, data = teengamb)
+summary(model_T)
+print(model_T$coefficients['sex'])
+
+model_T_1 <- lm(gamble ~ sex + status, data = teengamb)
+summary(model_T_1)
+print(model_T_1$coefficients['sex'])
+
+model_T_2 <- lm(gamble ~ sex + income, data = teengamb)
+summary(model_T_2)
+print(model_T_2$coefficients['sex'])
+
+model_T_3 <- lm(gamble ~ sex + verbal, data = teengamb)
+summary(model_T_3)
+print(model_T_3$coefficients['sex'])
+
+model_T_4 <- lm(gamble ~ sex + status + income, data = teengamb)
+summary(model_T_4)
+print(model_T_4$coefficients['sex'])
+
+model_T_5 <- lm(gamble ~ sex + status + verbal, data = teengamb)
+summary(model_T_5)
+print(model_T_5$coefficients['sex'])
+
+model_T_6 <- lm(gamble ~ sex + income + verbal, data = teengamb)
+summary(model_T_6)
+print(model_T_6$coefficients['sex'])
+
+model_T_7 <- lm(gamble ~ sex + status + income + verbal, data = teengamb)
+summary(model_T_7)
+print(model_T_7$coefficients['sex'])
+```
+
+## Question Four
+Use the teengamb data for this question.
+
+### a
+Make a plot of gamble on income using a different plotting symbol depending
+on the sex.
+
+```{r 4.a}
+ggplot(teengamb, aes(gamble, income, color = sex)) +
+  geom_point()
+```
+
+### b
+Fit a regression model with gamble as the response and income and sex as predictors. Display the regression fit on the plot.
+
+```{r 4.b}
+model_i <- lm(gamble ~ income + sex, data = teengamb)
+par(mfrow=c(2,2))
+plot(model_i)
+```
+
+## Question Five
+Thirty-nine MBA students were asked about happiness and how this related to their income and social life. The data are found in happy.
+
+### a
+Fit a regression model with happy as the response and the other four variables
+as predictors. Give an interpretation for the meaning of the love coefficient.
+
+```{r 5.a}
+#view(happy)
+model_h <- lm(happy ~ money + sex + love + work, data = happy)
+summary(model_h)
+```
+
+### b
+The love predictor takes three possible values but mostly takes the value 2 or
+3. Create a new predictor called clove which takes the value zero if love is 2 or less. Use this new predictor to replace love in the regression model and interpret the meaning of the corresponding coefficient. Do the results differ much from the previous model?
+
+```{r 5.b}
+happy$clove <- ifelse(happy$love <= 2, 0, 1)
+model_h_1 <- lm(happy ~ money + sex + love + clove + work, data = happy)
+summary(model_h_1)
+```
+
+### c
+Fit a model with only clove as a predictor and interpret the coefficient. How do the results compare to the previous outcome.
+
+```{r 5.c}
+model_h_2 <- lm(happy ~ clove, data = happy)
+summary(model_h_2)
+```
+
+### d
+Make a plot of happy on work, distinguishing the value clove by using a plotting symbol. Use jittering to distinguish overplotted points.
+
+```{r 5.d}
+ggplot(happy, aes(happy, work, color = clove)) +
+  geom_point()
+```
